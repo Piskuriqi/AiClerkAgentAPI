@@ -1,0 +1,6 @@
+@AiClerkAgentAPI_HostAddress = http://localhost:5191
+
+GET {{AiClerkAgentAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
