@@ -27,7 +27,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-// OpenAI API-Key (Hinweis: In Produktion absichern!)
 const string openAiApiKey = "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";
 
 // Services registrieren
@@ -43,7 +42,6 @@ builder.Services.AddSingleton<CartService>(sp =>
 builder.Services.AddSingleton<ProductService>();
 builder.Services.AddSingleton<ShopPlugin>();
 
-// Semantic Kernel konfigurieren
 builder.Services.AddSingleton(sp =>
 {
     var kernelBuilder = Kernel.CreateBuilder()
@@ -55,7 +53,6 @@ builder.Services.AddSingleton(sp =>
     return kernelBuilder.Build();
 });
 
-// Chat Completion Service
 builder.Services.AddScoped<IChatCompletionService>(sp =>
     sp.GetRequiredService<Kernel>().GetRequiredService<IChatCompletionService>()
 );
@@ -67,7 +64,6 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Swagger aktivieren
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

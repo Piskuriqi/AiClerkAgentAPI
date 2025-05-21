@@ -23,23 +23,32 @@ namespace AiClerkAgentAPI.Services
             }
             return cart;
         }
+        public CartModel GetCart(string conversationId)
+        {
+            _cache.TryGetValue(conversationId, out CartModel? cart);
+            return cart;
+        }
+        public void RemoveCart(string conversationId)
+        {
+            _cache.Remove(conversationId);
+        }
+
 
         public async Task<string> AddToCartByNameAsync(string productName, string conversationId)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(productName) || string.IsNullOrWhiteSpace(conversationId))
-                    return "❗ Bitte gib sowohl den Produktnamen als auch die Gesprächs-ID an.";
+                    return "Please specify both the product name and the conversation ID.";
 
                 var products = await _productService.GetProductsAsync();
-
                 var normalizedInput = productName.Trim().ToLowerInvariant();
                 var matchedProduct = products.FirstOrDefault(p =>
                     !string.IsNullOrWhiteSpace(p.ProduktName) &&
                     p.ProduktName.ToLowerInvariant().Contains(normalizedInput));
 
                 if (matchedProduct == null)
-                    return $"🔍 Ich konnte kein Produkt finden mit dem Namen \"{productName}\".";
+                    return $"🔍 I couldn't find any product with the name \"{productName}\".";
 
                 var cartItem = new CartItem
                 {
@@ -61,26 +70,46 @@ namespace AiClerkAgentAPI.Services
                     cart.Items.Add(cartItem);
                 }
 
-                _cache.Set(conversationId, cart); 
+                _cache.Set(conversationId, cart);
 
-                return $"✅ Das Produkt \"{matchedProduct.ProduktName}\" wurde erfolgreich in deinen Warenkorb gelegt.";
+                return $"✅ The product \"{matchedProduct.ProduktName}\" has been added to your cart.";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Fehler beim Hinzufügen zum Warenkorb: {ex.Message}");
-                return "❌ Interner Fehler beim Hinzufügen zum Warenkorb.";
+                Console.WriteLine($"❌ Error adding to cart: {ex.Message}");
+                return "❌ Internal error while adding to cart.";
             }
         }
-
-        public CartModel GetCart(string conversationId)
+        public async Task<string> RemoveFromCartByNameAsync(string productName, string conversationId)
         {
-            _cache.TryGetValue(conversationId, out CartModel? cart);
-            return cart;
-        }
+            try
+            {
+                if (string.IsNullOrWhiteSpace(productName) || string.IsNullOrWhiteSpace(conversationId))
+                    return "Please specify both the product name and the conversation ID.";
 
-        public void RemoveCart(string conversationId)
-        {
-            _cache.Remove(conversationId);
+                var cart = GetCart(conversationId);
+                if (cart == null || cart.Items == null || !cart.Items.Any())
+                    return "Your cart is empty or could not be accessed.";
+
+                var normalizedInput = productName.Trim().ToLowerInvariant();
+                var matchedItem = cart.Items.FirstOrDefault(i =>
+                    !string.IsNullOrWhiteSpace(i.ProductName) &&
+                    i.ProductName.ToLowerInvariant().Contains(normalizedInput)
+                );
+
+                if (matchedItem == null)
+                    return $"🔍 I couldn't find any product with the name \"{productName}\" in your cart.";
+
+                cart.Items.Remove(matchedItem);
+                _cache.Set(conversationId, cart);
+
+                return $"🗑️ The product *{matchedItem.ProductName}* has been removed from your cart.";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error removing from cart: {ex.Message}");
+                return "❌ Internal error while removing from cart.";
+            }
         }
     }
 }

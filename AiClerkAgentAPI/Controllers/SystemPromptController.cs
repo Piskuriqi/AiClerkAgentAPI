@@ -22,10 +22,10 @@ namespace AiClerkAgentAPI.Controllers
         public IActionResult Set([FromBody] ChatSettings req)
         {
             if (string.IsNullOrWhiteSpace(req.SystemPrompt))
-                return BadRequest("Prompt darf nicht leer sein.");
+                return BadRequest("Prompt must not be empty.");
 
             _chatSettings.SystemPrompt = req.SystemPrompt;
-            return Ok(new { Message = "SystemPrompt wurde aktualisiert." });
+            return Ok(new { Message = "System prompt has been updated." });
         }
     }
 }

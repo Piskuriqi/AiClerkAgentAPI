@@ -1,5 +1,14 @@
+# Node modules (für Frontend)
+node_modules/
+dist/
+
+# Visual Studio Arbeitsordner (nicht ins Repo!)
 .vs/
+
+# .NET Build-Ordner (für Backend)
 bin/
 obj/
 *.user
-*.suo
+*.db
+.env
+
