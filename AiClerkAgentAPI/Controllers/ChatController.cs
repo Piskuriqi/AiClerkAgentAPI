@@ -35,7 +35,7 @@ namespace AiClerkAgentAPI.Controllers
             };
 
             if (string.IsNullOrWhiteSpace(_chatSettings.SystemPrompt))
-                throw new ArgumentException("SystemPrompt darf nicht leer sein.");
+                throw new ArgumentException("Prompt must not be empty.");
         }
 
         [HttpPost]
@@ -46,7 +46,7 @@ namespace AiClerkAgentAPI.Controllers
                 : request.ConversationId;
 
             if (string.IsNullOrWhiteSpace(request.Message))
-                return BadRequest("Die Nachricht darf nicht leer sein.");
+                return BadRequest("The message must not be empty.");
 
             if (!_cache.TryGetValue(conversationId, out ChatHistory history))
             {
