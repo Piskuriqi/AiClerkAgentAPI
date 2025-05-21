@@ -21,8 +21,11 @@ namespace AiClerkAgentAPI.Models
 
         public double DiscountPercentage { get; set; }
         [JsonPropertyName("rating")]
-
         public double Rating { get; set; }
+
+        [JsonPropertyName("stock")]
+        public int Stock { get; set; }
+
         [JsonPropertyName("tags")]
 
         public List<string>? Tags { get; set; }

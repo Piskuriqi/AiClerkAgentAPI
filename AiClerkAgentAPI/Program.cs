@@ -6,51 +6,68 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.ChatCompletion;
 using AiClerkAgentAPI.Services;
 using AiClerkAgentAPI.Plugins;
+using AiClerkAgentAPI.Models;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Caching.Memory;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Hier wird der OpenAI-API-Schlüssel direkt im Code definiert.
-// Aus Sicherheitsgründen sollte man ihn später in einen Secret-Manager oder Umgebungsvariablen auslagern.
+// ChatSettings laden
+builder.Services.Configure<ChatSettings>(builder.Configuration.GetSection("ChatSettings"));
+builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<ChatSettings>>().Value);
+
+// CORS aktivieren
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+// OpenAI API-Key (Hinweis: In Produktion absichern!)
 const string openAiApiKey = "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";
 
-// Registrierung des ProductService mithilfe der HttpClient-Fabrik.
+// Services registrieren
 builder.Services.AddHttpClient<ProductService>();
-builder.Services.AddHttpClient<CartService>();
+
+builder.Services.AddSingleton<CartService>(sp =>
+{
+    var cache = sp.GetRequiredService<IMemoryCache>();
+    var productService = sp.GetRequiredService<ProductService>();
+    return new CartService(cache, productService);
+});
+
+builder.Services.AddSingleton<ProductService>();
 builder.Services.AddSingleton<ShopPlugin>();
 
-
-// Konfiguration des Semantic Kernel und Registrierung des ChatCompletionService.
+// Semantic Kernel konfigurieren
 builder.Services.AddSingleton(sp =>
 {
-    // 1) Kernel-Builder erzeugen
     var kernelBuilder = Kernel.CreateBuilder()
         .AddOpenAIChatCompletion("gpt-4o", openAiApiKey);
 
-    // 2) Plugin aus dem Container holen (jetzt registriert!)  
     var shopPlugin = sp.GetRequiredService<ShopPlugin>();
     kernelBuilder.Plugins.AddFromObject(shopPlugin, "Shop");
 
-    // 3) Kernel fertigbauen
     return kernelBuilder.Build();
 });
 
-// Der ChatCompletionService wird aus dem Kernel extrahiert und als Scoped-Service registriert.
+// Chat Completion Service
 builder.Services.AddScoped<IChatCompletionService>(sp =>
     sp.GetRequiredService<Kernel>().GetRequiredService<IChatCompletionService>()
 );
 
-// Aktivierung des MemoryCache für die Speicherung der Conversation History.
 builder.Services.AddMemoryCache();
-
-// Registrierung der Controller für die HTTP-Endpunkte.
 builder.Services.AddControllers();
-
-// Aktivierung von Swagger zur Dokumentation der API.
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Swagger aktivieren
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -58,7 +75,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseRouting();
-
+app.UseCors("AllowAll");
 app.MapControllers();
 
 app.Run();

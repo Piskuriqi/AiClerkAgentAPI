@@ -12,7 +12,7 @@
     public class CartModel
     {
         public string? ConversationId { get; set; }
-        public List<CartItem> Items { get; set; }
+        public List<CartItem> Items { get; set; } = new();
 
     }
    

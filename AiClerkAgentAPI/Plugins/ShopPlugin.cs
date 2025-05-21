@@ -13,9 +13,10 @@ namespace AiClerkAgentAPI.Plugins
         private readonly CartService _cartService;
         private readonly IMemoryCache _cache;
 
-        public ShopPlugin(ProductService productService)
+        public ShopPlugin(ProductService productService, CartService cartService)
         {
             _productService = productService;
+            _cartService = cartService;
         }
 
         [KernelFunction("get_products_by_category")]
@@ -61,15 +62,6 @@ namespace AiClerkAgentAPI.Plugins
 
             return await Task.FromResult(categories);
         }
-        [KernelFunction("get_all_products")]
-        [Description("Gibt alle verfügbaren Produkte zurück, damit die KI selbst die passenden Produkte für das vom Nutzer genannte Event oder Szenario auswählen kann." +
-                     " Die KI kann erkennen, ob es sich z.B. um ein Date, eine Hochzeit, ein Bewerbungsgespräch, ein Geschenk, " +
-                     "einen Urlaub oder andere Anlässe handelt und die relevantesten Produkte für diesen spezifischen Kontext empfehlen.")]
-        public async Task<List<ProductModel>> GetAllProductsAsync()
-        {
-            var products = _productService.GetProductsAsync().Result;
-            return await Task.FromResult(products);
-        }
         [KernelFunction("get_new_products")]
         [Description("Gibt die neuesten Produkte zurück, sortiert nach Erstellungsdatum. " +
                     "Optional: Anzahl der zurückzugebenden Elemente (default 3).")]
@@ -103,36 +95,72 @@ namespace AiClerkAgentAPI.Plugins
 
             return newest;
         }
-        [KernelFunction("add_last_suggested_to_cart")]
-        [Description("Fügt das zuletzt vorgeschlagene Produkt in den Warenkorb ein.")]
-        public Task<CartModel> AddLastSuggestedToCartAsync([Description("ConversationId des Nutzers")] string conversationId,
-                                                           [Description("Anzahl (optional, default = 1)")] int quantity = 1)
-        { 
+        [KernelFunction("add_to_cart_by_name")]
+        [Description("Fügt ein Produkt mit einem bestimmten Namen oder Schlüsselwort in den Warenkorb ein.")]
+        public async Task<string> AddToCartByNameAsync(
+        [Description("Der Produktname oder ein Teil davon, den der Nutzer erwähnt hat")] string productName,
+        [Description("Die aktuelle Conversation ID des Nutzers")] string conversationId)
+        {
+            if (string.IsNullOrWhiteSpace(productName))
+                return "Bitte gib den Produktnamen an, den du hinzufügen möchtest.";
 
-            var item = new CartItem
+            if (string.IsNullOrWhiteSpace(conversationId))
+                return "Es fehlt eine gültige Konversations-ID. Bitte starte eine neue Unterhaltung.";
+
+            // Produkte laden
+            var products = await _productService.GetProductsAsync();
+            var normalizedInput = productName.Trim().ToLowerInvariant();
+
+            var matchedProduct = products
+                        .FirstOrDefault(p =>  !string.IsNullOrWhiteSpace(p.ProduktName) &&
+                                                p.ProduktName.ToLowerInvariant().Contains(normalizedInput)
+    );
+
+
+            if (matchedProduct == null)
+                return $"🔍 Ich konnte kein Produkt mit dem Namen \"{productName}\" finden. Bitte formuliere es eventuell etwas anders.";
+
+            // CartItem erzeugen
+            var cartItem = new CartItem
             {
-                ProductId = last.Id,
-                ProductName = last.ProduktName,
-                Price = last.Price,
-                Quantity = quantity
+                ProductId = matchedProduct.Id,
+                ProductName = matchedProduct.ProduktName,
+                Price = matchedProduct.Price,
+                Quantity = 1
             };
 
-            _cartService.AddToCart(conversationId, item);
-            return Task.FromResult(_cartService.GetCart(conversationId)!);
+            // Warenkorb holen oder anlegen
+            var cart = _cartService?.GetorCreateCart(conversationId);
+            if (cart == null)
+                return "❌ Es gab ein Problem beim Zugriff auf deinen Warenkorb. Bitte versuche es erneut.";
+
+            // Produkt hinzufügen oder erhöhen
+            var existing = cart.Items.FirstOrDefault(i => i.ProductId == cartItem.ProductId);
+            if (existing != null)
+            {
+                existing.Quantity += 1;
+            }
+            else
+            {
+                cart.Items.Add(cartItem);
+            }
+
+            return $"✅ Das Produkt **{matchedProduct.ProduktName}** wurde deinem Warenkorb hinzugefügt.";
         }
+
         [KernelFunction("get_cart")]
         [Description("Gibt den aktuellen Warenkorb zurück.")]
-        public Task<CartModel?> GetCartAsync(string conversationId)
+        public async Task<CartModel?> GetCartAsync(string conversationId)
         {
             var cart = _cartService.GetCart(conversationId);
-            return Task.FromResult(cart);
+            return await Task.FromResult(cart);
         }
         [KernelFunction("clear_cart")]
         [Description("Löscht den kompletten Warenkorb.")]
-        public Task ClearCartAsync(string conversationId)
+        public async Task ClearCartAsync(string conversationId)
         {
             _cartService.RemoveCart(conversationId);
-            return Task.CompletedTask;
+            await Task.CompletedTask;
         }
     }
 }
