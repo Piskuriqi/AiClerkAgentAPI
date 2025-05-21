@@ -4,6 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.SemanticKernel;
 using System.ComponentModel;
 using System.Globalization;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace AiClerkAgentAPI.Plugins
 {
@@ -11,8 +12,6 @@ namespace AiClerkAgentAPI.Plugins
     {
         private readonly ProductService _productService;
         private readonly CartService _cartService;
-        private readonly IMemoryCache _cache;
-
         public ShopPlugin(ProductService productService, CartService cartService)
         {
             _productService = productService;
@@ -20,8 +19,8 @@ namespace AiClerkAgentAPI.Plugins
         }
 
         [KernelFunction("get_products_by_category")]
-        [Description("Holt eine Liste von Produkten basierend auf einer angegebenen Kategorie.")]
-        public async Task<List<ProductModel>> GetProductsByCategoryAsync([Description("category von der userinput")] string category)
+        [Description("Returns a list of products based on a given category.")]
+        public async Task<List<ProductModel>> GetProductsByCategoryAsync([Description("The category provided by the user input.")] string category)
         {
             var products = await _productService.GetProductsAsync();
 
@@ -34,7 +33,7 @@ namespace AiClerkAgentAPI.Plugins
         }
 
         [KernelFunction("suggest_products")]
-        [Description("Schlägt dem Nutzer passende Produkte vor basierend auf den angegebenen Schlüsselwörtern.")]
+        [Description("Suggest suitable products to the user based on the given keywords.")]
         public async Task<List<ProductModel>> SuggestProductsAsync(string keywords)
         {
             var products = _productService.GetProductsAsync().Result;
@@ -49,7 +48,7 @@ namespace AiClerkAgentAPI.Plugins
         }
 
         [KernelFunction("get_categories")]
-        [Description("Gibt eine Liste aller Produktkategorien im Onlineshop zurück.")]
+        [Description("Returns a list of all product categories available in the online shop.")]
         public async Task<List<string>> GetCategoriesAsync()
         {
             var products = _productService.GetProductsAsync().Result;
@@ -63,9 +62,8 @@ namespace AiClerkAgentAPI.Plugins
             return await Task.FromResult(categories);
         }
         [KernelFunction("get_new_products")]
-        [Description("Gibt die neuesten Produkte zurück, sortiert nach Erstellungsdatum. " +
-                    "Optional: Anzahl der zurückzugebenden Elemente (default 3).")]
-        public async Task<List<ProductModel>> GetNewProductsAsync([Description("Maximale Anzahl an neuesten Produkten")] int topN = 3)
+        [Description("Returns the newest products, sorted by creation date. Optional: Number of products to return (default: 3).")]
+        public async Task<List<ProductModel>> GetNewProductsAsync([Description("Maximum number of newest products to return.")] int topN = 3)
         {
             var products = await _productService.GetProductsAsync();
             var parsed = products
@@ -96,16 +94,16 @@ namespace AiClerkAgentAPI.Plugins
             return newest;
         }
         [KernelFunction("add_to_cart_by_name")]
-        [Description("Fügt ein Produkt mit einem bestimmten Namen oder Schlüsselwort in den Warenkorb ein.")]
-        public async Task<string> AddToCartByNameAsync(
-        [Description("Der Produktname oder ein Teil davon, den der Nutzer erwähnt hat")] string productName,
-        [Description("Die aktuelle Conversation ID des Nutzers")] string conversationId)
+        [Description("Add a product with a specific name or keyword to the shopping cart. The function looks for a product matching " +
+                     "the provided name and adds it to the user's current shopping cart session.")]
+        public async Task<string> AddToCartByNameAsync([Description("The product name or any part of it that the user mentioned.")] string productName,
+                                                       [Description("The user's current conversation ID.")] string conversationId)
         {
             if (string.IsNullOrWhiteSpace(productName))
-                return "Bitte gib den Produktnamen an, den du hinzufügen möchtest.";
+                return "Please specify the product name you want to add.";
 
             if (string.IsNullOrWhiteSpace(conversationId))
-                return "Es fehlt eine gültige Konversations-ID. Bitte starte eine neue Unterhaltung.";
+                return "A valid conversation ID is missing. Please start a new conversation.";
 
             // Produkte laden
             var products = await _productService.GetProductsAsync();
@@ -118,9 +116,8 @@ namespace AiClerkAgentAPI.Plugins
 
 
             if (matchedProduct == null)
-                return $"🔍 Ich konnte kein Produkt mit dem Namen \"{productName}\" finden. Bitte formuliere es eventuell etwas anders.";
+                return $"🔍 I couldn't find any product with the name \"{productName}\". Please try rephrasing it.";
 
-            // CartItem erzeugen
             var cartItem = new CartItem
             {
                 ProductId = matchedProduct.Id,
@@ -129,12 +126,10 @@ namespace AiClerkAgentAPI.Plugins
                 Quantity = 1
             };
 
-            // Warenkorb holen oder anlegen
             var cart = _cartService?.GetorCreateCart(conversationId);
             if (cart == null)
-                return "❌ Es gab ein Problem beim Zugriff auf deinen Warenkorb. Bitte versuche es erneut.";
+                return "❌ There was a problem accessing your shopping cart. Please try again.";
 
-            // Produkt hinzufügen oder erhöhen
             var existing = cart.Items.FirstOrDefault(i => i.ProductId == cartItem.ProductId);
             if (existing != null)
             {
@@ -145,18 +140,46 @@ namespace AiClerkAgentAPI.Plugins
                 cart.Items.Add(cartItem);
             }
 
-            return $"✅ Das Produkt **{matchedProduct.ProduktName}** wurde deinem Warenkorb hinzugefügt.";
+            return $"✅ The product **{matchedProduct.ProduktName}** has been added to your cart.";
+        }
+        [KernelFunction("remove_from_cart_by_name")]
+        [Description("Remove a product with a specific name or keyword from the shopping cart. The function looks for a product matching the provided name in the user's current shopping cart session and removes it.")]
+        public async Task<string> RemoveFromCartByNameAsync(
+        [Description("The product name or any part of it that the user mentioned.")] string productName,
+        [Description("The user's current conversation ID.")] string conversationId)
+        {
+            if (string.IsNullOrWhiteSpace(productName))
+                return "Please specify the product name you want to remove.";
+
+            if (string.IsNullOrWhiteSpace(conversationId))
+                return "A valid conversation ID is missing. Please start a new conversation.";
+
+            var cart = _cartService?.GetCart(conversationId);
+            if (cart == null || cart.Items == null || !cart.Items.Any())
+                return "Your cart is empty or could not be accessed.";
+
+            var normalizedInput = productName.Trim().ToLowerInvariant();
+            var matchedItem = cart.Items.FirstOrDefault(i =>
+                !string.IsNullOrWhiteSpace(i.ProductName) &&
+                i.ProductName.ToLowerInvariant().Contains(normalizedInput)
+            );
+
+            if (matchedItem == null)
+                return $"🔍 I couldn't find any product with the name \"{productName}\" in your cart. Please try rephrasing it.";
+
+            cart.Items.Remove(matchedItem);
+            return $"🗑️ The product *{matchedItem.ProductName}* has been removed from your cart.";
         }
 
         [KernelFunction("get_cart")]
-        [Description("Gibt den aktuellen Warenkorb zurück.")]
+        [Description("Returns the current shopping cart for the given conversation ID.")]
         public async Task<CartModel?> GetCartAsync(string conversationId)
         {
             var cart = _cartService.GetCart(conversationId);
             return await Task.FromResult(cart);
         }
         [KernelFunction("clear_cart")]
-        [Description("Löscht den kompletten Warenkorb.")]
+        [Description("Clears the entire shopping cart for the given conversation ID.")]
         public async Task ClearCartAsync(string conversationId)
         {
             _cartService.RemoveCart(conversationId);
