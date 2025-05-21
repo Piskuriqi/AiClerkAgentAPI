@@ -94,90 +94,25 @@ namespace AiClerkAgentAPI.Plugins
             return newest;
         }
         [KernelFunction("add_to_cart_by_name")]
-        [Description("Add a product with a specific name or keyword to the shopping cart. The function looks for a product matching " +
-                     "the provided name and adds it to the user's current shopping cart session.")]
+        [Description("Add a product with a specific name or keyword to the shopping cart. The function looks for a product matching the provided name and adds it to the user's current shopping cart session.")]
         public async Task<string> AddToCartByNameAsync([Description("The product name or any part of it that the user mentioned.")] string productName,
                                                        [Description("The user's current conversation ID.")] string conversationId)
-        {
-            if (string.IsNullOrWhiteSpace(productName))
-                return "Please specify the product name you want to add.";
 
-            if (string.IsNullOrWhiteSpace(conversationId))
-                return "A valid conversation ID is missing. Please start a new conversation.";
+             => await _cartService.AddToCartByNameAsync(productName, conversationId);
 
-            // Produkte laden
-            var products = await _productService.GetProductsAsync();
-            var normalizedInput = productName.Trim().ToLowerInvariant();
-
-            var matchedProduct = products
-                        .FirstOrDefault(p =>  !string.IsNullOrWhiteSpace(p.ProduktName) &&
-                                                p.ProduktName.ToLowerInvariant().Contains(normalizedInput)
-    );
-
-
-            if (matchedProduct == null)
-                return $"🔍 I couldn't find any product with the name \"{productName}\". Please try rephrasing it.";
-
-            var cartItem = new CartItem
-            {
-                ProductId = matchedProduct.Id,
-                ProductName = matchedProduct.ProduktName,
-                Price = matchedProduct.Price,
-                Quantity = 1
-            };
-
-            var cart = _cartService?.GetorCreateCart(conversationId);
-            if (cart == null)
-                return "❌ There was a problem accessing your shopping cart. Please try again.";
-
-            var existing = cart.Items.FirstOrDefault(i => i.ProductId == cartItem.ProductId);
-            if (existing != null)
-            {
-                existing.Quantity += 1;
-            }
-            else
-            {
-                cart.Items.Add(cartItem);
-            }
-
-            return $"✅ The product **{matchedProduct.ProduktName}** has been added to your cart.";
-        }
         [KernelFunction("remove_from_cart_by_name")]
         [Description("Remove a product with a specific name or keyword from the shopping cart. The function looks for a product matching the provided name in the user's current shopping cart session and removes it.")]
-        public async Task<string> RemoveFromCartByNameAsync(
-        [Description("The product name or any part of it that the user mentioned.")] string productName,
-        [Description("The user's current conversation ID.")] string conversationId)
-        {
-            if (string.IsNullOrWhiteSpace(productName))
-                return "Please specify the product name you want to remove.";
+        public async Task<string> RemoveFromCartByNameAsync([Description("The product name or any part of it that the user mentioned.")] string productName,
+                                                            [Description("The user's current conversation ID.")] string conversationId)
 
-            if (string.IsNullOrWhiteSpace(conversationId))
-                return "A valid conversation ID is missing. Please start a new conversation.";
-
-            var cart = _cartService?.GetCart(conversationId);
-            if (cart == null || cart.Items == null || !cart.Items.Any())
-                return "Your cart is empty or could not be accessed.";
-
-            var normalizedInput = productName.Trim().ToLowerInvariant();
-            var matchedItem = cart.Items.FirstOrDefault(i =>
-                !string.IsNullOrWhiteSpace(i.ProductName) &&
-                i.ProductName.ToLowerInvariant().Contains(normalizedInput)
-            );
-
-            if (matchedItem == null)
-                return $"🔍 I couldn't find any product with the name \"{productName}\" in your cart. Please try rephrasing it.";
-
-            cart.Items.Remove(matchedItem);
-            return $"🗑️ The product *{matchedItem.ProductName}* has been removed from your cart.";
-        }
+              => await _cartService.RemoveFromCartByNameAsync(productName, conversationId);
 
         [KernelFunction("get_cart")]
         [Description("Returns the current shopping cart for the given conversation ID.")]
         public async Task<CartModel?> GetCartAsync(string conversationId)
-        {
-            var cart = _cartService.GetCart(conversationId);
-            return await Task.FromResult(cart);
-        }
+
+             => await Task.FromResult(_cartService.GetCart(conversationId));
+
         [KernelFunction("clear_cart")]
         [Description("Clears the entire shopping cart for the given conversation ID.")]
         public async Task ClearCartAsync(string conversationId)
