@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShopBot Assistant</title>
+  <link rel="stylesheet" href="./src/styles/style.css" />
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <div>
+        <div class="chat-title">AskTimmy</div>
+        <div class="chat-subtitle">Your AI Assistant</div>
+      </div>
+    </div>
+
+    <div id="chat-log" class="chat-log">
+      <!-- Nachrichten erscheinen hier -->
+    </div>
+
+    <form id="chat-form" class="chat-form">
+      <input type="text" id="user-input" placeholder="Ask me anything..." />
+      <button type="submit">➤</button>
+    </form>
+  </div>
+
+  <script type="module" src="./dist/script.js"></script>
+</body>
+</html>
