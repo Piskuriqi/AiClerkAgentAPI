@@ -2,30 +2,26 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <title>ShopBot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AiClerkAgent</title>
   <link rel="stylesheet" href="./styles/style.css" />
 </head>
 <body>
-  <!-- Floating Chat Button -->
-  <div id="chat-toggle" class="chat-toggle">💬</div>
-
-  <!-- Chat Window -->
-  <div id="chat-box" class="chat-box hidden">
+  <div class="chat-container">
     <div class="chat-header">
-      <div class="chat-header-left">
-        <div class="chat-title">
-          <strong>ShopBot</strong>
-          <small>Your AI Assistant</small>
-        </div>
+      <div>
+        <div class="chat-title">Ask Clerk</div>
+        <div class="chat-subtitle">Your Clerk Agent</div>
       </div>
-      <button id="chat-close" class="chat-close">▼</button>
     </div>
 
-    <div id="chat-log" class="chat-log"></div>
+    <div id="chat-log" class="chat-log">
+      <!-- Nachrichten erscheinen hier -->
+    </div>
 
     <form id="chat-form" class="chat-form">
       <input type="text" id="user-input" placeholder="Ask me anything..." />
-      <button type="submit" title="Send">➤</button>
+      <button type="submit">➤</button>
     </form>
   </div>
 
