@@ -36,15 +36,40 @@ namespace AiClerkAgentAPI.Plugins
         [Description("Suggest suitable products to the user based on the given keywords.")]
         public async Task<List<ProductModel>> SuggestProductsAsync(string keywords)
         {
-            var products = _productService.GetProductsAsync().Result;
+            // Hole Produktliste wie gehabt
+            var products = await _productService.GetProductsAsync();
             keywords = keywords.ToLower();
 
             var result = products.Where(p =>
-                (!string.IsNullOrWhiteSpace(p.ProduktName) && p.ProduktName.ToLower().Contains(keywords)) ||
-                (!string.IsNullOrWhiteSpace(p.Category) && p.Category.ToLower().Contains(keywords))
+                (!string.IsNullOrWhiteSpace(p.ProduktName) && p.ProduktName.ToLower().Contains(keywords))
+                || (!string.IsNullOrWhiteSpace(p.Description) && p.Description.ToLower().Contains(keywords))
+                || (p.Tags != null && p.Tags.Any(tag => tag.ToLower().Contains(keywords)))
+            // Falls du Brand als Property hast, ergänze das hier:
+            // || (!string.IsNullOrWhiteSpace(p.Brand) && p.Brand.ToLower().Contains(keywords))
             ).ToList();
 
-            return await Task.FromResult(result);
+            // Rückgabe: NUR Produkte aus dem Shop (keine Halluzinationen)
+            return result;
+        }
+        [KernelFunction("suggest_products_by_description")]
+        [Description("Suggests products whose description best matches the user's search keywords. Searches only in the product description and can find partial matches.")]
+        public async Task<List<ProductModel>> SuggestProductsByDescriptionAsync([Description("Keywords or phrases to search for in the product description.")] string keywords)
+        {
+            var products = await _productService.GetProductsAsync();
+
+            if (string.IsNullOrWhiteSpace(keywords))
+                return new List<ProductModel>();
+
+            var keywordsList = keywords
+                .ToLower()
+                .Split(new[] { ' ', ',', '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries);
+
+            var matchingProducts = products
+                .Where(p => !string.IsNullOrEmpty(p.Description) &&
+                            keywordsList.Any(kw => p.Description.ToLower().Contains(kw)))
+                .ToList();
+
+            return matchingProducts;
         }
 
         [KernelFunction("get_categories")]
