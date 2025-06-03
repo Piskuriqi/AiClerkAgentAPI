@@ -16,7 +16,6 @@ Via plugins, the AI can access various shop functions like product search, categ
 - [Security Aspects](#security-aspects)
 - [Extensibility](#extensibility)
 - [Sample Request](#sample-request)
-- [Contact & Notes](#contact--notes)
 
 ---
 
